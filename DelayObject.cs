@@ -8,36 +8,36 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class DelayObject : MonoBehaviour {
-
+public class DelayObject : MonoBehaviour
+{
     [SerializeField, Tooltip("Objects that are the source of movement")]
-    private Transform masterRoot    = default;
+    private Transform _fromRoot = default;
     [SerializeField, Tooltip("Objects that reflect movement with delay")]
-    private Transform slaveRoot     = default;
+    private Transform _toRoot = default;
 
     [SerializeField, Tooltip("Delay [s]")]
-    private float delay = 0;
-    private float elapsedTime;
+    private float _delay = 0;
+    private float _elapsedTime;
 
     // Temporarily save the Transform of a GameObject with the same name in a dictionary type.
-    private Dictionary<string, List<Vector3>> positionBuffer    = new Dictionary<string, List<Vector3>>();
-    private Dictionary<string, List<Quaternion>> rotationBuffer = new Dictionary<string, List<Quaternion>>();
+    private Dictionary<string, List<Vector3>> _positionBuffer = new Dictionary<string, List<Vector3>>();
+    private Dictionary<string, List<Quaternion>> _rotationBuffer = new Dictionary<string, List<Quaternion>>();
 
-    bool isDelayStart = false;
+    private bool _isDelayStart = false;
 
     // Use this for initialization
     void Start()
     {
-        InitializeDictionary(masterRoot);
+        InitializeDictionary(_fromRoot);
     }
 
     // Update is called once per frame
     void FixedUpdate()
     {
-        RecordParameter(masterRoot);
+        RecordParameter(_fromRoot);
 
-        if (isDelayStart)
-            ApplyParameter(slaveRoot);
+        if (_isDelayStart)
+            ApplyParameter(_toRoot);
         else
             CheckCurrentTime();
     }
@@ -45,60 +45,68 @@ public class DelayObject : MonoBehaviour {
     /// <summary>
     /// Temporarily save the master Transform.
     /// </summary>
-    /// <param name="mst">master object</param>
-    public void RecordParameter(Transform mst)
+    /// <param name="from">Base transform</param>
+    public void RecordParameter(Transform from)
     {
-        if (positionBuffer.ContainsKey(mst.name))
+        if (_positionBuffer.ContainsKey(from.name))
         {
-            positionBuffer[mst.name].Add(mst.position);
-            rotationBuffer[mst.name].Add(mst.rotation);
+            _positionBuffer[from.name].Add(from.position);
+            _rotationBuffer[from.name].Add(from.rotation);
         }
 
-        for(int iChild = 0; iChild < mst.childCount; iChild++)
+        for (int iChild = 0; iChild < from.childCount; iChild++)
         {
-            RecordParameter(mst.GetChild(iChild));
+            RecordParameter(from.GetChild(iChild));
         }
     }
 
     /// <summary>
-    /// If the slave object contains a GameObject with the same name as the master,
-    /// the temporarily saved Transform is applied to the slave object.
+    /// If the to object contains a GameObject with the same name as the from,
+    /// the temporarily saved Transform is applied to the to object.
     /// </summary>
-    /// <param name="slv">slave object</param>
-    public void ApplyParameter(Transform slv)
+    /// <param name="to">The Transform to which the Transform is retargeted.</param>
+    public void ApplyParameter(Transform to)
     {
-        if (rotationBuffer.ContainsKey(slv.name))
+        if (_rotationBuffer.ContainsKey(to.name))
         {
-            slv.position = positionBuffer[slv.name][0];
-            slv.rotation = rotationBuffer[slv.name][0];
+            to.position = _positionBuffer[to.name][0];
+            to.rotation = _rotationBuffer[to.name][0];
 
-            positionBuffer[slv.name].RemoveAt(0);
-            rotationBuffer[slv.name].RemoveAt(0);
+            _positionBuffer[to.name].RemoveAt(0);
+            _rotationBuffer[to.name].RemoveAt(0);
         }
 
-        for(int iChild = 0; iChild < slv.childCount; iChild++)
+        for (int iChild = 0; iChild < to.childCount; iChild++)
         {
-            ApplyParameter(slv.GetChild(iChild));
+            ApplyParameter(to.GetChild(iChild));
         }
     }
 
     /// <summary>
-    /// Initialize dictionary for temporarily save the Transform of a GameObject.
-    /// Initialize with the structure and name of the master object.
+    /// Clear and initialize dictionary for temporarily save the Transform of a GameObject.
+    /// Initialize with the structure and name of the from object.
     /// </summary>
-    /// <param name="mst">master object</param>
-    private void InitializeDictionary(Transform mst)
+    /// <param name="from">Base transform</param>
+    private void InitializeDictionary(Transform from)
     {
-        positionBuffer.Clear();
-        rotationBuffer.Clear();
+        _positionBuffer.Clear();
+        _rotationBuffer.Clear();
 
-        positionBuffer.Add(mst.name, new List<Vector3>());
-        rotationBuffer.Add(mst.name, new List<Quaternion>());
+        InitializeDictionaryKeyValue(from);
+    }
 
-        for(int iChild = 0; iChild < mst.childCount; iChild++)
-        {
-            InitializeDictionary(mst.GetChild(iChild));
-        }
+    /// <summary>
+    /// Initialize dictionary key and value for temporarily save the Transform of a GameObject.
+    /// Initialize with the structure and name of the from object.
+    /// </summary>
+    /// <param name="from">Base transform</param>
+    private void InitializeDictionaryKeyValue(Transform from)
+    {
+        _positionBuffer.Add(from.name, new List<Vector3>());
+        _rotationBuffer.Add(from.name, new List<Quaternion>());
+
+        for (int iChild = 0; iChild < from.childCount; iChild++)
+            InitializeDictionaryKeyValue(from.GetChild(iChild));
     }
 
     /// <summary>
@@ -107,21 +115,21 @@ public class DelayObject : MonoBehaviour {
     /// </summary>
     private void CheckCurrentTime()
     {
-        elapsedTime += Time.deltaTime;
+        _elapsedTime += Time.deltaTime;
 
-        if (elapsedTime >= delay)
-            isDelayStart = true;
+        if (_elapsedTime >= _delay)
+            _isDelayStart = true;
     }
 
     /// <summary>
     /// Reset all parameters.
     /// When you update the delay, please run this methods.
     /// </summary>
-    /// <param name="mst">master object</param>
-    public void ResetAll(Transform mst)
+    /// <param name="from">Base transform</param>
+    public void ResetAll(Transform from)
     {
-        InitializeDictionary(mst);
-        elapsedTime     = 0;
-        isDelayStart    = false;
+        InitializeDictionary(from);
+        _elapsedTime = 0;
+        _isDelayStart = false;
     }
 }
